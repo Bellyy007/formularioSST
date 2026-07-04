@@ -201,3 +201,18 @@ button {
     }
 }
 
+@media print {
+
+    .btn-arquivo {
+        display: none !important;
+    }
+
+}
+
+.imagem-medicao {
+    display: block;
+    max-width: 100px;
+    max-height: 100px;
+    margin: 0 auto 8px auto;
+    border-radius: 5px;
+}
