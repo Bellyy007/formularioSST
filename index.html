@@ -75,24 +75,23 @@
     <label><input type="checkbox" name="avaliacao[]" value="quimicos"> Químicos</label></div>
 
     <h4>Possui AVCB?</h4>
-    <label><input type="radio" name="avcb" value="sim"> Sim</label>
-    <label><input type="radio" name="avcb" value="nao"> Não</label>
+<label><input type="radio" name="avcb" value="sim"> Sim</label>
+<label><input type="radio" name="avcb" value="nao"> Não</label>
 
-    <br>
+<br>
 
-    <label>
-    Data de Vencimento <br>
-    <input type="date" id="vencimentoAvcb" class="data-avcb">
+<label>
+Data de Vencimento <br>
+<input type="date" id="vencimentoAvcb" class="data-avcb">
 </label>
 
     <h4>Possui PMOC?</h4>
-    <label><input type="radio" name="avcb" value="sim"> Sim</label>
-    <label><input type="radio" name="avcb" value="nao"> Não</label>
+        <label><input type="radio" name="pmoc" value="sim"> Sim</label>
+        <label><input type="radio" name="pmoc" value="nao"> Não</label>
 
     <h4>Possui Compressor?</h4>
-    <label><input type="radio" name="avcb" value="sim"> Sim</label>
-    <label><input type="radio" name="avcb" value="nao"> Não</label>
-</div>
+        <label><input type="radio" name="compressor" value="sim"> Sim</label>
+        <label><input type="radio" name="compressor" value="nao"> Não</label>
 
 <!-- 3. MEDIÇÕES -->
     <div class="container">
@@ -194,7 +193,21 @@
         <tbody id="tabela-extintores">
             <tr>
                 <td>1</td>
-                <td contenteditable="true"></td>
+                <td class="campo-arquivo">
+
+        <div contenteditable="true" class="editavel"></div>
+
+        <label class="btn-arquivo">
+            📎
+            <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                hidden
+            >
+        </label>
+
+    </td>
                 <td contenteditable="true"></td>
                 <td contenteditable="true"></td>
                 <td contenteditable="true"></td>
