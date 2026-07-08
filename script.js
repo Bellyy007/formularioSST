@@ -83,37 +83,55 @@ function atualizarNumeros() {
 }
 
 function adicionarExtintor() {
+
     const tabela = document.getElementById("tabela-extintores");
+
     const numero = tabela.rows.length + 1;
 
     const linha = `
-        <tr>
-            <td>${numero}</td>
-            <td contenteditable="true"></td>
-            <td contenteditable="true"></td>
-            <td contenteditable="true"></td>
-            <td contenteditable="true"></td>
-            <td contenteditable="true"></td>
-            <td contenteditable="true"></td>
-            <td contenteditable="true"></td>
-            <td><button onclick="removerLinha(this)">X</button></td>
-        </tr>
+    <tr>
+
+        <td>${numero}</td>
+
+        <td class="campo-arquivo">
+
+            <div contenteditable="true" class="editavel"></div>
+
+            <label class="btn-arquivo">
+                📎
+                <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    hidden
+                >
+            </label>
+
+        </td>
+
+        <td contenteditable="true"></td>
+
+        <td contenteditable="true"></td>
+
+        <td contenteditable="true"></td>
+
+        <td contenteditable="true"></td>
+
+        <td>
+            <button onclick="removerLinha(this)">
+                X
+            </button>
+        </td>
+
+    </tr>
     `;
 
-    tabela.innerHTML += linha;
-}
+    tabela.insertAdjacentHTML("beforeend", linha);
 
-function removerLinha(botao) {
-    const linha = botao.parentElement.parentElement;
-    linha.remove();
+    ativarUploadImagens();
+
     atualizarNumeracao();
-}
 
-function atualizarNumeracao() {
-    const linhas = document.querySelectorAll("#tabela-setores tr");
-    linhas.forEach((linha, index) => {
-        linha.cells[0].innerText = index + 1;
-    });
 }
 
 // SALVAR DADOS
@@ -218,8 +236,8 @@ document.addEventListener("DOMContentLoaded", () => {
 function ativarUploadImagens() {
 
     const inputs = document.querySelectorAll(
-        "#tabela-setores input[type='file']"
-    );
+    "input[type='file']"
+);
 
     inputs.forEach(input => {
 
