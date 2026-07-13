@@ -1,57 +1,75 @@
-// FUNÇÕES DE TABELA 
+// ======================================
+// LEVANTAMENTO AMBIENTAL SST
+// Desenvolvido por Izabelly
+// ======================================
 
-function adicionarSetor() {
+"use strict";
 
-    const tabela = document.getElementById("tabela-setores");
+// ======================================
+// ELEMENTOS PRINCIPAIS
+// ======================================
 
-    const numero = tabela.rows.length + 1;
+const tabelaSetores = document.getElementById("tabela-setores");
+const tabelaExtintores = document.getElementById("tabela-extintores");
+const areaPDF = document.getElementById("areaPDF");
 
-    const linha = `
+// ======================================
+// TABELAS
+// ======================================
+
+function removerLinha(botao) {
+
+    const linha = botao.closest("tr");
+    if (!linha) return;
+    linha.remove();
+    atualizarNumeracao();
+    salvarAutomaticamente();
+
+}
+
+function atualizarNumeracao() {
+
+    // Setores
+    tabelaSetores.querySelectorAll("tr").forEach((linha, index) => {
+        linha.cells[0].textContent = index + 1;
+    });
+
+    // Extintores
+    tabelaExtintores.querySelectorAll("tr").forEach((linha, index) => {
+        linha.cells[0].textContent = index + 1;
+    });
+
+}
+
+function criarLinhaExtintor(dados = {}) {
+
+    return `
         <tr>
 
-            <td>${numero}</td>
+            <td>${dados.numero || tabelaExtintores.rows.length + 1}</td>
 
-            <td contenteditable="true"></td>
-
-            <td contenteditable="true"></td>
-
-            <!-- LUX -->
             <td class="campo-arquivo">
 
-                <div contenteditable="true" class="editavel"></div>
+                <div contenteditable="true" class="editavel">
+                    ${dados.local || ""}
+                </div>
 
                 <label class="btn-arquivo">
                     📎
-                    <input type="file" hidden>
+                    <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        hidden
+                    >
                 </label>
 
             </td>
 
-            <!-- RUÍDO -->
-            <td class="campo-arquivo">
-
-                <div contenteditable="true" class="editavel"></div>
-
-                <label class="btn-arquivo">
-                    📎
-                    <input type="file" hidden>
-                </label>
-
-            </td>
-
-            <!-- TEMPERATURA -->
-            <td class="campo-arquivo">
-
-                <div contenteditable="true" class="editavel"></div>
-
-                <label class="btn-arquivo">
-                    📎
-                    <input type="file" hidden>
-                </label>
-
-            </td>
-
-            <td contenteditable="true"></td>
+            <td contenteditable="true">${dados.tipo || ""}</td>
+            <td contenteditable="true">${dados.quantidade || ""}</td>
+            <td contenteditable="true">${dados.vencimento || ""}</td>
+            <td contenteditable="true">${dados.observacao || ""}</td>
 
             <td>
                 <button onclick="removerLinha(this)">
@@ -62,182 +80,339 @@ function adicionarSetor() {
         </tr>
     `;
 
-    tabela.innerHTML += linha;
-}
-
-function removerLinha(botao) {
-
-    botao.parentElement.parentElement.remove();
-
-    atualizarNumeros();
-}
-
-function atualizarNumeros() {
-
-    const linhas = document.querySelectorAll("#tabela-setores tr");
-
-    linhas.forEach((linha, index) => {
-
-        linha.cells[0].innerText = index + 1;
-    });
 }
 
 function adicionarExtintor() {
 
-    const tabela = document.getElementById("tabela-extintores");
+    tabelaExtintores.insertAdjacentHTML(
 
-    const numero = tabela.rows.length + 1;
+        "beforeend",
 
-    const linha = `
-    <tr>
+        criarLinhaExtintor()
 
-        <td>${numero}</td>
+    );
 
-        <td class="campo-arquivo">
+    atualizarNumeracao();
+    ativarUploadImagens();
+    salvarAutomaticamente();
 
-            <div contenteditable="true" class="editavel"></div>
+}
 
-            <label class="btn-arquivo">
-                📎
-                <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    hidden
-                >
-            </label>
+// ===============================
+// SALVAMENTO AUTOMÁTICO
+// ===============================
 
-        </td>
+function salvarAutomaticamente() {
 
-        <td contenteditable="true"></td>
+    const dados = {};
 
-        <td contenteditable="true"></td>
+    document.querySelectorAll("input, textarea").forEach(campo => {
 
-        <td contenteditable="true"></td>
+    if (
+        campo.type === "button" ||
+        campo.type === "submit"
+    ) return;
 
-        <td contenteditable="true"></td>
+        // Radios
+        if (campo.type === "radio") {
+            if (campo.checked) {
+                dados[campo.name] = campo.value;
+            }
+            return;
+        }
 
-        <td>
-            <button onclick="removerLinha(this)">
-                X
-            </button>
-        </td>
+        // Checkboxes
+        if (campo.type === "checkbox") {
+            dados[campo.id] = campo.checked;
+            return;
+        }
 
-    </tr>
-    `;
+        // Campos sem ID não são salvos
+        if (!campo.id) return;
 
-    tabela.insertAdjacentHTML("beforeend", linha);
+        // Inputs e textarea
+        dados[campo.id] = campo.value;
+
+    });
+
+    localStorage.setItem(
+    "sstAutoSave",
+    JSON.stringify(dados)
+);
+
+const imagens = [];
+
+document
+    .querySelectorAll(".campo-arquivo input[type='file']")
+    .forEach(input => {
+
+        imagens.push(
+            input.dataset.imagem || ""
+        );
+
+    });
+
+localStorage.setItem(
+    "imagensSST",
+    JSON.stringify(imagens)
+);
+
+    salvarTabelaSetores();
+    salvarTabelaExtintores();
+
+}
+
+function restaurarDados() {
+
+    const dados = JSON.parse(
+        localStorage.getItem("sstAutoSave")
+    );
+
+    if (!dados) return;
+
+    document.querySelectorAll("input, textarea").forEach(campo => {
+
+        // Ignora uploads
+        if (
+            campo.type === "file" ||
+            campo.type === "button" ||
+            campo.type === "submit"
+        ) return;
+
+        // Radios
+        if (campo.type === "radio") {
+            campo.checked = (dados[campo.name] === campo.value);
+            return;
+        }
+
+        // Checkboxes
+        if (campo.type === "checkbox") {
+            campo.checked = dados[campo.id] || false;
+            return;
+        }
+
+        // Campos sem id
+        if (!campo.id) return;
+
+        // Inputs e textarea
+        campo.value = dados[campo.id] || "";
+
+    });
+
+}
+
+function restaurarImagens() {
+
+    const imagens = JSON.parse(
+        localStorage.getItem("imagensSST")
+    ) || [];
+
+    const inputs = document.querySelectorAll(
+        ".campo-arquivo input[type='file']"
+    );
+
+    inputs.forEach((input, indice) => {
+
+        const imagem = imagens[indice];
+
+        if (!imagem) return;
+        input.dataset.imagem = imagem;
+        const td = input.closest(".campo-arquivo");
+        let img = td.querySelector("img");
+
+        if (!img) {
+            img = document.createElement("img");
+            img.className = "imagem-medicao";
+            img.alt = "Imagem da medição";
+            td.appendChild(img);
+        }
+
+        img.src = imagem;
+        img.title = "Clique para trocar a foto";
+        img.onclick = () => input.click();
+
+    });
+
+}
+
+// ======================================
+// INICIALIZAÇÃO
+// ======================================
+
+document.addEventListener("DOMContentLoaded", () => {
+
+    restaurarDados();
+    restaurarTabelaSetores();
+    restaurarTabelaExtintores();
+    ativarUploadImagens();
+    ativarFotosGrandes();
+    restaurarImagens();
+
+    document.addEventListener("keyup", (e) => {
+
+        if (e.target.isContentEditable) {
+            salvarAutomaticamente();
+        }
+
+    });
+
+    document.addEventListener("input", salvarAutomaticamente);
+    document.addEventListener("change", salvarAutomaticamente);
+
+});
+
+// ======================================
+// PDF
+// ======================================
+
+function gerarPDF() {
+
+    const opt = {
+        margin: 10,
+        filename: "relatorio_sst.pdf",
+        image: {
+            type: "jpeg",
+            quality: 1
+        },
+        html2canvas: {
+            scale: 2
+        },
+        jsPDF: {
+            unit: "mm",
+            format: "a4",
+            orientation: "portrait"
+        }
+    };
+
+    html2pdf()
+        .set(opt)
+        .from(areaPDF)
+        .save();
+
+}
+
+function salvarTabelaSetores() {
+
+    console.log("SALVANDO TABELA");
+
+    const setores = [];
+
+    document.querySelectorAll("#tabela-setores tr").forEach(linha => {
+
+    const colunas = linha.querySelectorAll("td");
+
+    console.log(colunas);
+    console.log(colunas[1]);
+    console.log(colunas[1].innerHTML);
+    console.log(colunas[1].textContent);
+
+    setores.push({
+
+            numero: colunas[0].textContent.trim(),
+            setor: colunas[1].textContent.trim(),
+            descricao: colunas[2].textContent.trim(),
+            lux: colunas[3].querySelector(".editavel").innerText,
+            ruido: colunas[4].querySelector(".editavel").innerText,
+            temperatura: colunas[5].querySelector(".editavel").innerText,
+            observacao: colunas[6].innerText
+
+        });
+
+    });
+
+    localStorage.setItem(
+        "tabelaSetores",
+        JSON.stringify(setores)
+    );
+
+}
+
+function salvarTabelaExtintores() {
+
+    const extintores = [];
+
+    tabelaExtintores.querySelectorAll("tr").forEach(linha => {
+
+        const colunas = linha.querySelectorAll("td");
+
+        extintores.push({
+
+            numero: colunas[0].textContent.trim(),
+            local: colunas[1].querySelector(".editavel").innerText,
+            tipo: colunas[2].innerText,
+            quantidade: colunas[3].innerText,
+            vencimento: colunas[4].innerText,
+            observacao: colunas[5].innerText
+
+        });
+
+    });
+
+    localStorage.setItem(
+        "tabelaExtintores",
+        JSON.stringify(extintores)
+    );
+
+}
+
+
+
+function restaurarTabelaSetores() {
+
+    const setores = JSON.parse(
+        localStorage.getItem("tabelaSetores")
+    );
+
+    if (!setores || setores.length === 0) return;
+
+    tabelaSetores.innerHTML = "";
+
+    setores.forEach(setor => {
+
+        tabelaSetores.insertAdjacentHTML(
+            "beforeend",
+            criarLinhaSetor(setor)
+        );
+
+    });
 
     ativarUploadImagens();
-
     atualizarNumeracao();
 
 }
 
-// SALVAR DADOS
-function salvarDados() {
-    const dados = {
-        razao: document.getElementById("razaoSocial").value,
-        cnpj: document.getElementById("cnpj").value,
-        responsavel: document.getElementById("responsavelVisita").value,
-        observacoes: document.getElementById("observacoes").value
-    };
+function restaurarTabelaExtintores() {
 
-    localStorage.setItem("sstForm", JSON.stringify(dados));
-    alert("Dados salvos!");
-}
+    const extintores = JSON.parse(
+        localStorage.getItem("tabelaExtintores")
+    );
 
-// ASSINATURAS
-document.addEventListener("DOMContentLoaded", () => {
+    if (!extintores || extintores.length === 0) return;
 
-    const canvases = document.querySelectorAll(".assinaturaCanvas");
-    let estados = [];
+    tabelaExtintores.innerHTML = "";
+    extintores.forEach(extintor => {
 
-    canvases.forEach((canvas, index) => {
-        const ctx = canvas.getContext("2d");
+        tabelaExtintores.insertAdjacentHTML(
 
-        canvas.width = canvas.offsetWidth;
-        canvas.height = canvas.offsetHeight;
+            "beforeend",
+            criarLinhaExtintor(extintor)
 
-        estados[index] = { desenhando: false, ctx };
+        );
 
-        // MOUSE
-        canvas.addEventListener("mousedown", () => estados[index].desenhando = true);
-        canvas.addEventListener("mouseup", () => estados[index].desenhando = false);
-        canvas.addEventListener("mousemove", (e) => desenhar(e, index));
-
-        // TOUCH
-        canvas.addEventListener("touchstart", () => estados[index].desenhando = true);
-        canvas.addEventListener("touchend", () => estados[index].desenhando = false);
-        canvas.addEventListener("touchmove", (e) => desenharTouch(e, index));
     });
 
-    function desenhar(e, i) {
-        if (!estados[i].desenhando) return;
+    ativarUploadImagens();
+    atualizarNumeracao();
 
-        const ctx = estados[i].ctx;
+}
 
-        ctx.lineWidth = 2;
-        ctx.lineCap = "round";
-        ctx.strokeStyle = "#000";
+// ======================================
+// UPLOAD DE IMAGENS
+// ======================================
 
-        ctx.lineTo(e.offsetX, e.offsetY);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(e.offsetX, e.offsetY);
-    }
-
-    function desenharTouch(e, i) {
-        e.preventDefault();
-
-        const rect = canvases[i].getBoundingClientRect();
-        const touch = e.touches[0];
-
-        const x = touch.clientX - rect.left;
-        const y = touch.clientY - rect.top;
-
-        if (!estados[i].desenhando) return;
-
-        const ctx = estados[i].ctx;
-
-        ctx.lineWidth = 2;
-        ctx.lineCap = "round";
-        ctx.strokeStyle = "#000";
-
-        ctx.lineTo(x, y);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-    }
-
-    window.limparAssinatura = (i) => {
-        const ctx = estados[i].ctx;
-        ctx.clearRect(0, 0, canvases[i].width, canvases[i].height);
-    };
-
-    //  GERAR PDF
-    window.gerarPDF = () => {
-        const elemento = document.getElementById("areaPDF");
-
-        const opt = {
-            margin: 10,
-            filename: 'relatorio_sst.pdf',
-            image: { type: 'jpeg', quality: 1 },
-            html2canvas: { scale: 2 }, 
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
-        html2pdf().set(opt).from(elemento).save();
-    };
-
-});
-
-// Função para ativar upload de imagens
 function ativarUploadImagens() {
 
-    const inputs = document.querySelectorAll(
-    "input[type='file']"
-);
+    const inputs = document.querySelectorAll("input[type='file']");
 
     inputs.forEach(input => {
 
@@ -254,25 +429,88 @@ function ativarUploadImagens() {
 
             const leitor = new FileReader();
 
-            leitor.onload = (e) => {
+            leitor.onload = (evento) => {
 
                 const td = this.closest(".campo-arquivo");
+
+                if (!td) return;
 
                 let img = td.querySelector("img");
 
                 if (!img) {
 
                     img = document.createElement("img");
-
-                    img.style.maxWidth = "80px";
-                    img.style.maxHeight = "80px";
-                    img.style.display = "block";
-                    img.style.margin = "5px auto";
-
+                    img.classList.add("imagem-medicao");
+                    img.alt = "Imagem da medição";
                     td.appendChild(img);
+
                 }
 
-                img.src = e.target.result;
+            const imagemBase64 = evento.target.result;
+
+img.src = imagemBase64;
+img.title = "Clique para trocar a foto";
+
+this.dataset.imagem = imagemBase64;
+
+img.onclick = () => {
+    input.click();
+};
+
+salvarAutomaticamente();
+};
+
+        leitor.readAsDataURL(arquivo);
+
+        });
+
+    });
+
+}
+
+function ativarFotosGrandes() {
+
+    console.log("ATIVANDO FOTOS GRANDES");
+
+    const inputs = document.querySelectorAll(
+        ".campo-arquivo-grande input[type='file']"
+    );
+
+    console.log(inputs);
+
+    inputs.forEach(input => {
+
+        if (input.dataset.ativoGrande) return;
+        input.dataset.ativoGrande = "true";
+
+        input.addEventListener("change", function () {
+            const arquivo = this.files[0];
+            if (!arquivo) return;
+
+            const leitor = new FileReader();
+
+            leitor.onload = (evento) => {
+
+                console.log("Arquivo carregado!");
+
+                const td = this.closest(".campo-arquivo-grande");
+                console.log("Arquivo carregado!");
+
+                let img = td.querySelector("img");
+                console.log(img);
+
+                if (!img) {
+                    img = document.createElement("img");
+                    img.className = "foto-local";
+                    td.insertBefore(img, td.firstChild);
+                }
+
+                img.src = evento.target.result;
+                this.dataset.imagem = evento.target.result;
+                img.title = "Clique para trocar a foto";
+                img.onclick = () => this.click();
+                salvarAutomaticamente();
+
             };
 
             leitor.readAsDataURL(arquivo);
@@ -283,23 +521,20 @@ function ativarUploadImagens() {
 
 }
 
-function adicionarSetor() {
+function criarLinhaSetor(dados = {}) {
 
-    const tabela = document.getElementById("tabela-setores");
-
-    const numero = tabela.rows.length + 1;
-
-    const linha = `
+    return `
         <tr>
 
-            <td>${numero}</td>
+            <td>${dados.numero || tabelaSetores.rows.length + 1}</td>
 
-            <td contenteditable="true"></td>
+            <td contenteditable="true">${dados.setor || ""}</td>
 
-            <td contenteditable="true"></td>
+            <td contenteditable="true">${dados.descricao || ""}</td>
 
             <td class="campo-arquivo">
-                <div contenteditable="true" class="editavel"></div>
+
+                <div contenteditable="true" class="editavel">${dados.lux || ""}</div>
 
                 <label class="btn-arquivo">
                     📎
@@ -310,10 +545,12 @@ function adicionarSetor() {
                         hidden
                     >
                 </label>
+
             </td>
 
             <td class="campo-arquivo">
-                <div contenteditable="true" class="editavel"></div>
+
+                <div contenteditable="true" class="editavel">${dados.ruido || ""}</div>
 
                 <label class="btn-arquivo">
                     📎
@@ -324,10 +561,12 @@ function adicionarSetor() {
                         hidden
                     >
                 </label>
+
             </td>
 
             <td class="campo-arquivo">
-                <div contenteditable="true" class="editavel"></div>
+
+                <div contenteditable="true" class="editavel">${dados.temperatura || ""}</div>
 
                 <label class="btn-arquivo">
                     📎
@@ -338,9 +577,10 @@ function adicionarSetor() {
                         hidden
                     >
                 </label>
+
             </td>
 
-            <td contenteditable="true"></td>
+            <td contenteditable="true">${dados.observacao || ""}</td>
 
             <td>
                 <button onclick="removerLinha(this)">
@@ -351,12 +591,76 @@ function adicionarSetor() {
         </tr>
     `;
 
-    tabela.insertAdjacentHTML("beforeend", linha);
-
-    ativarUploadImagens();
 }
-document.addEventListener("DOMContentLoaded", () => {
 
+function adicionarSetor() {
+
+    tabelaSetores.insertAdjacentHTML(
+        "beforeend",
+        criarLinhaSetor()
+    );
+
+    atualizarNumeracao();
     ativarUploadImagens();
+    salvarAutomaticamente();
 
-});
+}
+
+function adicionarBanheiro() {
+
+    const tabela = document.getElementById("tabela-banheiros");
+    tabela.insertAdjacentHTML("beforeend", `
+        <tr>
+            <td class="campo-arquivo-grande">
+                <label class="btn-foto-grande">
+                    📎
+                    <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        hidden
+                    >
+                </label>
+            </td>
+            <td contenteditable="true"></td>
+
+            <td>
+                <button onclick="removerLinha(this)">
+                    X
+                </button>
+            </td>
+        </tr>
+    `);
+    ativarFotosGrandes();
+
+}
+
+function adicionarBebedouro() {
+
+    const tabela = document.getElementById("tabela-bebedouros");
+
+    tabela.insertAdjacentHTML("beforeend", `
+        <tr>
+            <td class="campo-arquivo-grande">
+                <label class="btn-foto-grande">
+                    📎
+                    <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        hidden
+                    >
+                </label>
+
+            </td>
+            <td contenteditable="true"></td>
+            <td>
+                <button onclick="removerLinha(this)">
+                    X
+                </button>
+            </td>
+        </tr>
+    `);
+    ativarFotosGrandes();
+
+}
