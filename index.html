@@ -11,7 +11,8 @@
 
 <body>
 
-    <div id="areaPDF">
+    <main id="areaPDF">
+
 <!-- CABEÇALHO -->
 <div class="header">
     <div>
@@ -25,13 +26,19 @@
 </div>
 
 <!-- 1. DADOS DA EMPRESA -->
-<div class="container">
+<div
+class="container"
+id="dadosEmpresa">
     <div class="titulo">1. DADOS DA EMPRESA</div>
 
     <div class="grid-2">
         <div>
-            <label>Razão Social</label>
-            <input type="text" id="razaoSocial" placeholder="Digite a razão social...">
+
+            <label for="razaoSocial">
+    Razão Social
+        </label>
+<input type="text" id="razaoSocial" placeholder="Digite a razão social...">
+
         </div>
 
         <div>
@@ -41,12 +48,12 @@
 
         <div>
             <label>Contabilidade</label>
-            <input type="text" id="cnpj" placeholder="Digite o nome da contabilidade...">
+            <input type="text" id="contabilidade" placeholder="Digite o nome da contabilidade...">
         </div>
 
         <div>
             <label>Contato</label>
-            <input type="text" id="cnpj" placeholder="Digite o Contato da Empresa...">
+            <input type="text" id="contato" placeholder="Digite o Contato da Empresa...">
         </div>
     </div>
 
@@ -57,22 +64,24 @@
 
     <div class="grid-1">
         <label>Acompanhante Empresa</label>
-        <input type="text" id="responsavelVisita" placeholder="Digite nome do acompanhante...">
+        <input type="text" id="acompanhanteEmpresa" placeholder="Digite nome do acompanhante...">
     </div>
 </div>
 
 <!-- 2. SEGURANÇA -->
-<div class="container">
+<div
+class="container"
+id="seguranca">
     <div class="titulo">2. INFORMAÇÕES DE SEGURANÇA</div>
 
         <h4>Avaliação Quantitativa</h4>
 
     <div class="alternativas">
-    <label><input type="checkbox" name="avaliacao[]" value="vci"> V.C.I.</label>
-    <label><input type="checkbox" name="avaliacao[]" value="vmb"> V.M.B.</label>
-    <label><input type="checkbox" name="avaliacao[]" value="calor"> Calor</label>
-    <label><input type="checkbox" name="avaliacao[]" value="ruido"> Ruído</label>
-    <label><input type="checkbox" name="avaliacao[]" value="quimicos"> Químicos</label></div>
+    <label><input type="checkbox" id="vci" name="avaliacao[]" value="vci"> V.C.I.</label>
+    <label><input type="checkbox" id="vmb" name="avaliacao[]" value="vmb"> V.M.B.</label>
+    <label><input type="checkbox" id="calor" name="avaliacao[]" value="calor"> Calor</label>
+    <label><input type="checkbox" id="ruido" name="avaliacao[]" value="ruido"> Ruído</label>
+    <label><input type="checkbox" id="quimicos" name="avaliacao[]" value="quimicos"> Químicos</label></div>
 
     <h4>Possui AVCB?</h4>
 <label><input type="radio" name="avcb" value="sim"> Sim</label>
@@ -92,9 +101,13 @@ Data de Vencimento <br>
     <h4>Possui Compressor?</h4>
         <label><input type="radio" name="compressor" value="sim"> Sim</label>
         <label><input type="radio" name="compressor" value="nao"> Não</label>
+    </div>
 
 <!-- 3. MEDIÇÕES -->
-    <div class="container">
+    <div
+    class="container"
+    id="medicoes">
+    <div class="titulo">3. MENSURAÇÃO</div>
 <table>
     <thead>
         <tr>
@@ -174,7 +187,9 @@ Data de Vencimento <br>
     </div>
 
 <!-- 4. EXTINTORES -->
-<div class="container">
+    <div
+    class="container"
+    id="extintores">
     <div class="titulo">4. EXTINTORES DE INCÊNDIO</div>
 
     <table>
@@ -220,41 +235,117 @@ Data de Vencimento <br>
     <button onclick="adicionarExtintor()">+ Adicionar Extintor</button>
 </div>
 
-<!-- 5. OBSERVAÇÕES -->
+<!-- 5. BANHEIROS -->
+
 <div class="container">
-    <div class="titulo">5. OBSERVAÇÕES GERAIS</div>
-    <textarea id="observacoes"></textarea>
+    <div class="titulo">
+        5. BANHEIROS (NR-24)
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Foto</th>
+                <th>Observação</th>
+                <th></th>
+            </tr>
+        </thead>
+
+        <tbody id="tabela-banheiros">
+            <tr>
+                <td class="campo-arquivo-grande">
+                    <label class="btn-foto-grande">
+                        📎
+                        <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            hidden
+                        >
+                    </label>
+                </td>
+                <td contenteditable="true"></td>
+
+                <td>
+                    <button onclick="removerLinha(this)">
+                        X
+                    </button>
+                </td>
+            </tr>
+        </tbody>
+
+    </table>
+
+    <button onclick="adicionarBanheiro()">
+        + Adicionar Banheiro
+    </button>
+
+</div>
+
+<!-- 6. BEBEDOUROS -->
+
+<div class="container">
+    <div class="titulo">
+        6. BEBEDOUROS
+    </div>
+    <table>
+
+        <thead>
+            <tr>
+                <th>Foto</th>
+                <th>Observação</th>
+                <th></th>
+            </tr>
+        </thead>
+
+        <tbody id="tabela-bebedouros">
+            <tr>
+                <td class="campo-arquivo-grande">
+                    <label class="btn-foto-grande">
+                        📎
+                        <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            hidden
+                        >
+                    </label>
+
+                </td>
+
+                <td contenteditable="true"></td>
+                <td>
+                    <button onclick="removerLinha(this)">
+                        X
+                    </button>
+                </td>
+            </tr>
+        </tbody>
+
+    </table>
+
+    <button onclick="adicionarBebedouro()">
+        + Adicionar Bebedouro
+    </button>
+
+</div>
+
+<!-- 5. OBSERVAÇÕES -->
+    <div class="container"
+    textarea id="observacoes">
+    <div class="titulo">7. OBSERVAÇÕES GERAIS</div>
+    <textarea
+    id="observacoes"
+    placeholder="Digite observações gerais..."
+></textarea>
 </div>
 
 <!-- BOTÕES -->
 <div class="container" style="text-align:center;">
-    <button onclick="salvarDados()">Salvar Dados</button>
-    <button onclick="window.print()">Salvar em PDF</button>
+    <button onclick="gerarPDF()"></button>Salvar em PDF</button>
 </div>
 
-<!-- ASSINATURAS -->
-
-<div class="assinaturas-container">
-
-    <div class="assinatura-box">
-        <p>Assinatura do Responsável pela Visita:</p>
-        <canvas class="assinaturaCanvas"></canvas>
-        <div class="botoes-assinatura">
-            <button type="button" onclick="limparAssinatura(0)">Limpar</button>
-        </div>
-        <input type="hidden" class="assinaturaImagem">
-    </div>
-
-    <div class="assinatura-box">
-        <p>Assinatura do Responsável pela Empresa:</p>
-        <canvas class="assinaturaCanvas"></canvas>
-        <div class="botoes-assinatura">
-            <button type="button" onclick="limparAssinatura(1)">Limpar</button>
-        </div>
-        <input type="hidden" class="assinaturaImagem">
-    </div>
-
-</div>
+</main>
 
 <!-- JS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
