@@ -133,7 +133,7 @@ Data de Vencimento <br>
             <td contenteditable="true"></td>
 
             <!-- LUX -->
-            <td class="campo-arquivo">
+            <td class="campo-arquivo upload-slot">
 
                 <div contenteditable="true" class="editavel"></div>
 
@@ -145,7 +145,7 @@ Data de Vencimento <br>
             </td>
 
             <!-- RUÍDO -->
-            <td class="campo-arquivo">
+            <td class="campo-arquivo upload-slot">
 
                 <div contenteditable="true" class="editavel"></div>
 
@@ -157,7 +157,7 @@ Data de Vencimento <br>
             </td>
 
             <!-- TEMPERATURA -->
-            <td class="campo-arquivo">
+            <td class="campo-arquivo upload-slot">
 
                 <div contenteditable="true" class="editavel"></div>
 
@@ -208,7 +208,7 @@ Data de Vencimento <br>
         <tbody id="tabela-extintores">
             <tr>
                 <td>1</td>
-                <td class="campo-arquivo">
+                <td class="campo-arquivo upload-slot">
 
         <div contenteditable="true" class="editavel"></div>
 
@@ -253,7 +253,7 @@ Data de Vencimento <br>
 
         <tbody id="tabela-banheiros">
             <tr>
-                <td class="campo-arquivo-grande">
+                <td class="campo-arquivo-grande upload-slot">
                     <label class="btn-foto-grande">
                         📎
                         <input
@@ -300,7 +300,7 @@ Data de Vencimento <br>
 
         <tbody id="tabela-bebedouros">
             <tr>
-                <td class="campo-arquivo-grande">
+                <td class="campo-arquivo-grande upload-slot">
                     <label class="btn-foto-grande">
                         📎
                         <input
@@ -330,20 +330,30 @@ Data de Vencimento <br>
 
 </div>
 
-<!-- 5. OBSERVAÇÕES -->
-    <div class="container"
-    textarea id="observacoes">
+<!-- 7. OBSERVAÇÕES -->
+<div class="container" id="secao-observacoes">
     <div class="titulo">7. OBSERVAÇÕES GERAIS</div>
+
     <textarea
-    id="observacoes"
-    placeholder="Digite observações gerais..."
-></textarea>
+        id="observacoes"
+        placeholder="Digite observações gerais..."
+    ></textarea>
+
+    <div class="fotos-observacoes">
+        <h4>Fotos</h4>
+
+        <div class="grade-fotos" id="galeria-observacoes">
+            <!-- fotos adicionadas dinamicamente via JS -->
+        </div>
+
+        <button onclick="adicionarFotoObservacao()">+ Adicionar Foto</button>
+    </div>
 </div>
 
 <!-- BOTÕES -->
 <div class="container" style="text-align:center;">
     <button onclick="window.print()">
-    Salvar em PDF
+    📄 Baixar PDF
     </button>
 </div>
 
