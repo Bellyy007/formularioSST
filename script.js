@@ -1,6 +1,7 @@
 // ======================================
 // LEVANTAMENTO AMBIENTAL SST
 // Desenvolvido por Izabelly
+// Versão 1.3 (galeria de fotos em observações)
 // ======================================
 
 "use strict";
@@ -11,303 +12,250 @@
 
 const tabelaSetores = document.getElementById("tabela-setores");
 const tabelaExtintores = document.getElementById("tabela-extintores");
+const tabelaBanheiros = document.getElementById("tabela-banheiros");
+const tabelaBebedouros = document.getElementById("tabela-bebedouros");
 const areaPDF = document.getElementById("areaPDF");
 
 // ======================================
-// TABELAS
+// UTILIDADES GERAIS
 // ======================================
 
-function removerLinha(botao) {
+function atualizarNumeracao() {
+    [tabelaSetores, tabelaExtintores].forEach(tabela => {
+        if (!tabela) return;
 
+        tabela.querySelectorAll("tr").forEach((linha, indice) => {
+            linha.cells[0].textContent = indice + 1;
+        });
+    });
+}
+
+function removerLinha(botao) {
     const linha = botao.closest("tr");
     if (!linha) return;
+
     linha.remove();
     atualizarNumeracao();
     salvarAutomaticamente();
-
 }
 
-function atualizarNumeracao() {
-
-    // Setores
-    tabelaSetores.querySelectorAll("tr").forEach((linha, index) => {
-        linha.cells[0].textContent = index + 1;
-    });
-
-    // Extintores
-    tabelaExtintores.querySelectorAll("tr").forEach((linha, index) => {
-        linha.cells[0].textContent = index + 1;
-    });
-
+function campoIgnoravel(campo) {
+    return campo.type === "file" || campo.type === "button" || campo.type === "submit";
 }
+
+// ======================================
+// UPLOAD DE IMAGENS (ÚNICO)
+// Funciona em qualquer container marcado com a classe "upload-slot"
+// (células de tabela ou os cards da galeria de observações)
+// ======================================
+
+function criarOuObterImagem(container) {
+    let img = container.querySelector("img");
+
+    if (!img) {
+        img = document.createElement("img");
+
+        if (container.classList.contains("campo-arquivo-grande")) {
+            img.className = "foto-local";
+        } else if (container.classList.contains("foto-obs-card")) {
+            img.className = "foto-obs";
+        } else {
+            img.className = "imagem-medicao";
+        }
+
+        container.insertBefore(img, container.firstChild);
+    }
+
+    return img;
+}
+
+// Redimensiona e comprime a imagem antes de guardar, para reduzir
+// o tamanho salvo no navegador e, consequentemente, do PDF gerado.
+function comprimirImagem(base64Original, larguraMaxima = 1000, qualidade = 0.7) {
+    return new Promise((resolve) => {
+        const imagem = new Image();
+
+        imagem.onload = () => {
+            let largura = imagem.width;
+            let altura = imagem.height;
+
+            if (largura > larguraMaxima) {
+                altura = Math.round((altura * larguraMaxima) / largura);
+                largura = larguraMaxima;
+            }
+
+            const canvas = document.createElement("canvas");
+            canvas.width = largura;
+            canvas.height = altura;
+
+            canvas.getContext("2d").drawImage(imagem, 0, 0, largura, altura);
+
+            resolve(canvas.toDataURL("image/jpeg", qualidade));
+        };
+
+        // Se a imagem não puder ser processada, usa a original como fallback
+        imagem.onerror = () => resolve(base64Original);
+
+        imagem.src = base64Original;
+    });
+}
+
+function ativarUploadImagens() {
+    document.querySelectorAll("input[type='file']").forEach(input => {
+        if (input.dataset.ativo) return;
+        input.dataset.ativo = "true";
+
+        input.addEventListener("change", function () {
+            const arquivo = this.files[0];
+            if (!arquivo) return;
+
+            const leitor = new FileReader();
+
+            leitor.onload = async (evento) => {
+                const imagemOriginal = evento.target.result;
+                const imagemBase64 = await comprimirImagem(imagemOriginal);
+
+                this.dataset.imagem = imagemBase64;
+
+                const container = this.closest(".upload-slot");
+                if (!container) return;
+
+                const img = criarOuObterImagem(container);
+                img.src = imagemBase64;
+                img.title = "Clique para trocar a foto";
+                img.onclick = () => this.click();
+
+                salvarAutomaticamente();
+            };
+
+            leitor.readAsDataURL(arquivo);
+        });
+    });
+}
+
+function restaurarImagens() {
+    const imagens = JSON.parse(localStorage.getItem("imagensSST")) || [];
+
+    document.querySelectorAll("input[type='file']").forEach((input, indice) => {
+        const imagem = imagens[indice];
+        if (!imagem) return;
+
+        input.dataset.imagem = imagem;
+
+        const container = input.closest(".upload-slot");
+        if (!container) return;
+
+        const img = criarOuObterImagem(container);
+        img.src = imagem;
+        img.title = "Clique para trocar a foto";
+        img.onclick = () => input.click();
+    });
+}
+
+// ======================================
+// CAMPO DE ARQUIVO (usado por setores e extintores)
+// ======================================
+
+function campoComArquivo(valor) {
+    return `
+        <div contenteditable="true" class="editavel">${valor || ""}</div>
+        <label class="btn-arquivo">
+            📎
+            <input type="file" accept="image/*" capture="environment" hidden>
+        </label>
+    `;
+}
+
+// ======================================
+// EXTINTORES
+// ======================================
 
 function criarLinhaExtintor(dados = {}) {
-
     return `
         <tr>
-
             <td>${dados.numero || tabelaExtintores.rows.length + 1}</td>
-
-            <td class="campo-arquivo">
-
-                <div contenteditable="true" class="editavel">
-                    ${dados.local || ""}
-                </div>
-
-                <label class="btn-arquivo">
-                    📎
-                    <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        hidden
-                    >
-                </label>
-
-            </td>
-
+            <td class="campo-arquivo upload-slot">${campoComArquivo(dados.local)}</td>
             <td contenteditable="true">${dados.tipo || ""}</td>
             <td contenteditable="true">${dados.quantidade || ""}</td>
             <td contenteditable="true">${dados.vencimento || ""}</td>
             <td contenteditable="true">${dados.observacao || ""}</td>
-
-            <td>
-                <button onclick="removerLinha(this)">
-                    X
-                </button>
-            </td>
-
+            <td><button onclick="removerLinha(this)">X</button></td>
         </tr>
     `;
-
 }
 
 function adicionarExtintor() {
-
-    tabelaExtintores.insertAdjacentHTML(
-
-        "beforeend",
-
-        criarLinhaExtintor()
-
-    );
-
+    tabelaExtintores.insertAdjacentHTML("beforeend", criarLinhaExtintor());
     atualizarNumeracao();
     ativarUploadImagens();
     salvarAutomaticamente();
-
 }
 
-// ===============================
-// SALVAMENTO AUTOMÁTICO
-// ===============================
+function salvarTabelaExtintores() {
+    const extintores = [];
 
-function salvarAutomaticamente() {
+    tabelaExtintores.querySelectorAll("tr").forEach(linha => {
+        const colunas = linha.querySelectorAll("td");
 
-    const dados = {};
-
-    document.querySelectorAll("input, textarea").forEach(campo => {
-
-    if (
-        campo.type === "button" ||
-        campo.type === "submit"
-    ) return;
-
-        // Radios
-        if (campo.type === "radio") {
-            if (campo.checked) {
-                dados[campo.name] = campo.value;
-            }
-            return;
-        }
-
-        // Checkboxes
-        if (campo.type === "checkbox") {
-            dados[campo.id] = campo.checked;
-            return;
-        }
-
-        // Campos sem ID não são salvos
-        if (!campo.id) return;
-
-        // Inputs e textarea
-        dados[campo.id] = campo.value;
-
+        extintores.push({
+            numero: colunas[0].textContent.trim(),
+            local: colunas[1].querySelector(".editavel").innerText,
+            tipo: colunas[2].innerText,
+            quantidade: colunas[3].innerText,
+            vencimento: colunas[4].innerText,
+            observacao: colunas[5].innerText
+        });
     });
 
-    localStorage.setItem(
-    "sstAutoSave",
-    JSON.stringify(dados)
-);
-
-const imagens = [];
-
-document
-    .querySelectorAll(".campo-arquivo input[type='file']")
-    .forEach(input => {
-
-        imagens.push(
-            input.dataset.imagem || ""
-        );
-
-    });
-
-localStorage.setItem(
-    "imagensSST",
-    JSON.stringify(imagens)
-);
-
-    salvarTabelaSetores();
-    salvarTabelaExtintores();
-
+    localStorage.setItem("tabelaExtintores", JSON.stringify(extintores));
 }
 
-function restaurarDados() {
+function restaurarTabelaExtintores() {
+    const extintores = JSON.parse(localStorage.getItem("tabelaExtintores"));
+    if (!extintores || extintores.length === 0) return;
 
-    const dados = JSON.parse(
-        localStorage.getItem("sstAutoSave")
-    );
-
-    if (!dados) return;
-
-    document.querySelectorAll("input, textarea").forEach(campo => {
-
-        // Ignora uploads
-        if (
-            campo.type === "file" ||
-            campo.type === "button" ||
-            campo.type === "submit"
-        ) return;
-
-        // Radios
-        if (campo.type === "radio") {
-            campo.checked = (dados[campo.name] === campo.value);
-            return;
-        }
-
-        // Checkboxes
-        if (campo.type === "checkbox") {
-            campo.checked = dados[campo.id] || false;
-            return;
-        }
-
-        // Campos sem id
-        if (!campo.id) return;
-
-        // Inputs e textarea
-        campo.value = dados[campo.id] || "";
-
+    tabelaExtintores.innerHTML = "";
+    extintores.forEach(extintor => {
+        tabelaExtintores.insertAdjacentHTML("beforeend", criarLinhaExtintor(extintor));
     });
 
-}
-
-function restaurarImagens() {
-
-    const imagens = JSON.parse(
-        localStorage.getItem("imagensSST")
-    ) || [];
-
-    const inputs = document.querySelectorAll(
-        ".campo-arquivo input[type='file']"
-    );
-
-    inputs.forEach((input, indice) => {
-
-        const imagem = imagens[indice];
-
-        if (!imagem) return;
-        input.dataset.imagem = imagem;
-        const td = input.closest(".campo-arquivo");
-        let img = td.querySelector("img");
-
-        if (!img) {
-            img = document.createElement("img");
-            img.className = "imagem-medicao";
-            img.alt = "Imagem da medição";
-            td.appendChild(img);
-        }
-
-        img.src = imagem;
-        img.title = "Clique para trocar a foto";
-        img.onclick = () => input.click();
-
-    });
-
-}
-
-// ======================================
-// INICIALIZAÇÃO
-// ======================================
-
-document.addEventListener("DOMContentLoaded", () => {
-
-    restaurarDados();
-    restaurarTabelaSetores();
-    restaurarTabelaExtintores();
     ativarUploadImagens();
-    ativarFotosGrandes();
-    restaurarImagens();
-
-    document.addEventListener("keyup", (e) => {
-
-        if (e.target.isContentEditable) {
-            salvarAutomaticamente();
-        }
-
-    });
-
-    document.addEventListener("input", salvarAutomaticamente);
-    document.addEventListener("change", salvarAutomaticamente);
-
-});
+    atualizarNumeracao();
+}
 
 // ======================================
-// PDF
+// SETORES
 // ======================================
 
-function gerarPDF() {
+function criarLinhaSetor(dados = {}) {
+    return `
+        <tr>
+            <td>${dados.numero || tabelaSetores.rows.length + 1}</td>
+            <td contenteditable="true">${dados.setor || ""}</td>
+            <td contenteditable="true">${dados.descricao || ""}</td>
+            <td class="campo-arquivo upload-slot">${campoComArquivo(dados.lux)}</td>
+            <td class="campo-arquivo upload-slot">${campoComArquivo(dados.ruido)}</td>
+            <td class="campo-arquivo upload-slot">${campoComArquivo(dados.temperatura)}</td>
+            <td contenteditable="true">${dados.observacao || ""}</td>
+            <td><button onclick="removerLinha(this)">X</button></td>
+        </tr>
+    `;
+}
 
-    const opt = {
-        margin: 10,
-        filename: "relatorio_sst.pdf",
-        image: {
-            type: "jpeg",
-            quality: 1
-        },
-        html2canvas: {
-            scale: 2
-        },
-        jsPDF: {
-            unit: "mm",
-            format: "a4",
-            orientation: "portrait"
-        }
-    };
-
-    html2pdf()
-        .set(opt)
-        .from(areaPDF)
-        .save();
-
+function adicionarSetor() {
+    tabelaSetores.insertAdjacentHTML("beforeend", criarLinhaSetor());
+    atualizarNumeracao();
+    ativarUploadImagens();
+    salvarAutomaticamente();
 }
 
 function salvarTabelaSetores() {
-
-    console.log("SALVANDO TABELA");
-
     const setores = [];
 
     document.querySelectorAll("#tabela-setores tr").forEach(linha => {
+        const colunas = linha.querySelectorAll("td");
 
-    const colunas = linha.querySelectorAll("td");
-
-    console.log(colunas);
-    console.log(colunas[1]);
-    console.log(colunas[1].innerHTML);
-    console.log(colunas[1].textContent);
-
-    setores.push({
-
+        setores.push({
             numero: colunas[0].textContent.trim(),
             setor: colunas[1].textContent.trim(),
             descricao: colunas[2].textContent.trim(),
@@ -315,352 +263,310 @@ function salvarTabelaSetores() {
             ruido: colunas[4].querySelector(".editavel").innerText,
             temperatura: colunas[5].querySelector(".editavel").innerText,
             observacao: colunas[6].innerText
-
         });
-
     });
 
-    localStorage.setItem(
-        "tabelaSetores",
-        JSON.stringify(setores)
-    );
-
+    localStorage.setItem("tabelaSetores", JSON.stringify(setores));
 }
-
-function salvarTabelaExtintores() {
-
-    const extintores = [];
-
-    tabelaExtintores.querySelectorAll("tr").forEach(linha => {
-
-        const colunas = linha.querySelectorAll("td");
-
-        extintores.push({
-
-            numero: colunas[0].textContent.trim(),
-            local: colunas[1].querySelector(".editavel").innerText,
-            tipo: colunas[2].innerText,
-            quantidade: colunas[3].innerText,
-            vencimento: colunas[4].innerText,
-            observacao: colunas[5].innerText
-
-        });
-
-    });
-
-    localStorage.setItem(
-        "tabelaExtintores",
-        JSON.stringify(extintores)
-    );
-
-}
-
-
 
 function restaurarTabelaSetores() {
-
-    const setores = JSON.parse(
-        localStorage.getItem("tabelaSetores")
-    );
-
+    const setores = JSON.parse(localStorage.getItem("tabelaSetores"));
     if (!setores || setores.length === 0) return;
 
     tabelaSetores.innerHTML = "";
-
     setores.forEach(setor => {
-
-        tabelaSetores.insertAdjacentHTML(
-            "beforeend",
-            criarLinhaSetor(setor)
-        );
-
+        tabelaSetores.insertAdjacentHTML("beforeend", criarLinhaSetor(setor));
     });
 
     ativarUploadImagens();
     atualizarNumeracao();
-
-}
-
-function restaurarTabelaExtintores() {
-
-    const extintores = JSON.parse(
-        localStorage.getItem("tabelaExtintores")
-    );
-
-    if (!extintores || extintores.length === 0) return;
-
-    tabelaExtintores.innerHTML = "";
-    extintores.forEach(extintor => {
-
-        tabelaExtintores.insertAdjacentHTML(
-
-            "beforeend",
-            criarLinhaExtintor(extintor)
-
-        );
-
-    });
-
-    ativarUploadImagens();
-    atualizarNumeracao();
-
 }
 
 // ======================================
-// UPLOAD DE IMAGENS
+// TABELAS SIMPLES (BANHEIROS E BEBEDOUROS)
+// Estrutura idêntica: foto + observação + remover
 // ======================================
 
-function ativarUploadImagens() {
+function criarLinhaSimples(dados = {}) {
+    const tr = document.createElement("tr");
 
-    const inputs = document.querySelectorAll("input[type='file']");
-
-    inputs.forEach(input => {
-
-        // Evita adicionar o evento duas vezes
-        if (input.dataset.ativo) return;
-
-        input.dataset.ativo = "true";
-
-        input.addEventListener("change", function () {
-
-            const arquivo = this.files[0];
-
-            if (!arquivo) return;
-
-            const leitor = new FileReader();
-
-            leitor.onload = (evento) => {
-
-                const td = this.closest(".campo-arquivo");
-
-                if (!td) return;
-
-                let img = td.querySelector("img");
-
-                if (!img) {
-
-                    img = document.createElement("img");
-                    img.classList.add("imagem-medicao");
-                    img.alt = "Imagem da medição";
-                    td.appendChild(img);
-
-                }
-
-            const imagemBase64 = evento.target.result;
-
-img.src = imagemBase64;
-img.title = "Clique para trocar a foto";
-
-this.dataset.imagem = imagemBase64;
-
-img.onclick = () => {
-    input.click();
-};
-
-salvarAutomaticamente();
-};
-
-        leitor.readAsDataURL(arquivo);
-
-        });
-
-    });
-
-}
-
-function ativarFotosGrandes() {
-
-    console.log("ATIVANDO FOTOS GRANDES");
-
-    const inputs = document.querySelectorAll(
-        ".campo-arquivo-grande input[type='file']"
-    );
-
-    console.log(inputs);
-
-    inputs.forEach(input => {
-
-        if (input.dataset.ativoGrande) return;
-        input.dataset.ativoGrande = "true";
-
-        input.addEventListener("change", function () {
-            const arquivo = this.files[0];
-            if (!arquivo) return;
-
-            const leitor = new FileReader();
-
-            leitor.onload = (evento) => {
-
-                console.log("Arquivo carregado!");
-
-                const td = this.closest(".campo-arquivo-grande");
-                console.log("Arquivo carregado!");
-
-                let img = td.querySelector("img");
-                console.log(img);
-
-                if (!img) {
-                    img = document.createElement("img");
-                    img.className = "foto-local";
-                    td.insertBefore(img, td.firstChild);
-                }
-
-                img.src = evento.target.result;
-                this.dataset.imagem = evento.target.result;
-                img.title = "Clique para trocar a foto";
-                img.onclick = () => this.click();
-                salvarAutomaticamente();
-
-            };
-
-            leitor.readAsDataURL(arquivo);
-
-        });
-
-    });
-
-}
-
-function criarLinhaSetor(dados = {}) {
-
-    return `
-        <tr>
-
-            <td>${dados.numero || tabelaSetores.rows.length + 1}</td>
-
-            <td contenteditable="true">${dados.setor || ""}</td>
-
-            <td contenteditable="true">${dados.descricao || ""}</td>
-
-            <td class="campo-arquivo">
-
-                <div contenteditable="true" class="editavel">${dados.lux || ""}</div>
-
-                <label class="btn-arquivo">
-                    📎
-                    <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        hidden
-                    >
-                </label>
-
-            </td>
-
-            <td class="campo-arquivo">
-
-                <div contenteditable="true" class="editavel">${dados.ruido || ""}</div>
-
-                <label class="btn-arquivo">
-                    📎
-                    <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        hidden
-                    >
-                </label>
-
-            </td>
-
-            <td class="campo-arquivo">
-
-                <div contenteditable="true" class="editavel">${dados.temperatura || ""}</div>
-
-                <label class="btn-arquivo">
-                    📎
-                    <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        hidden
-                    >
-                </label>
-
-            </td>
-
-            <td contenteditable="true">${dados.observacao || ""}</td>
-
-            <td>
-                <button onclick="removerLinha(this)">
-                    X
-                </button>
-            </td>
-
-        </tr>
+    tr.innerHTML = `
+        <td class="campo-arquivo-grande upload-slot">
+            <label class="btn-arquivo">
+                📎
+                <input type="file" accept="image/*" capture="environment" hidden>
+            </label>
+        </td>
+        <td contenteditable="true">${dados.observacao || ""}</td>
+        <td><button onclick="removerLinha(this)">X</button></td>
     `;
 
+    if (dados.imagem) {
+        const input = tr.querySelector("input[type='file']");
+        const td = tr.querySelector(".campo-arquivo-grande");
+
+        input.dataset.imagem = dados.imagem;
+
+        const img = document.createElement("img");
+        img.className = "foto-local";
+        img.src = dados.imagem;
+        img.title = "Clique para trocar a foto";
+        img.onclick = () => input.click();
+
+        td.insertBefore(img, td.firstChild);
+    }
+
+    return tr;
 }
 
-function adicionarSetor() {
+function adicionarLinhaSimples(tabelaId) {
+    const tbody = document.getElementById(tabelaId);
+    tbody.appendChild(criarLinhaSimples());
 
-    tabelaSetores.insertAdjacentHTML(
-        "beforeend",
-        criarLinhaSetor()
-    );
-
-    atualizarNumeracao();
     ativarUploadImagens();
     salvarAutomaticamente();
-
 }
 
-function adicionarBanheiro() {
+function salvarTabelaSimples(tabelaId, storageKey) {
+    const dados = [];
 
-    const tabela = document.getElementById("tabela-banheiros");
-    tabela.insertAdjacentHTML("beforeend", `
-        <tr>
-            <td class="campo-arquivo-grande">
-                <label class="btn-foto-grande">
-                    📎
-                    <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        hidden
-                    >
-                </label>
-            </td>
-            <td contenteditable="true"></td>
+    document.querySelectorAll(`#${tabelaId} tr`).forEach(linha => {
+        dados.push({
+            observacao: linha.cells[1].textContent.trim(),
+            imagem: linha.querySelector("input[type='file']")?.dataset.imagem || ""
+        });
+    });
 
-            <td>
-                <button onclick="removerLinha(this)">
-                    X
-                </button>
-            </td>
-        </tr>
-    `);
-    ativarFotosGrandes();
-
+    localStorage.setItem(storageKey, JSON.stringify(dados));
 }
 
-function adicionarBebedouro() {
+function restaurarTabelaSimples(tabelaId, storageKey) {
+    const dados = JSON.parse(localStorage.getItem(storageKey));
+    if (!dados || dados.length === 0) return;
 
-    const tabela = document.getElementById("tabela-bebedouros");
+    const tbody = document.getElementById(tabelaId);
+    tbody.innerHTML = "";
 
-    tabela.insertAdjacentHTML("beforeend", `
-        <tr>
-            <td class="campo-arquivo-grande">
-                <label class="btn-foto-grande">
-                    📎
-                    <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        hidden
-                    >
-                </label>
+    dados.forEach(item => tbody.appendChild(criarLinhaSimples(item)));
 
-            </td>
-            <td contenteditable="true"></td>
-            <td>
-                <button onclick="removerLinha(this)">
-                    X
-                </button>
-            </td>
-        </tr>
-    `);
-    ativarFotosGrandes();
-
+    ativarUploadImagens();
 }
+
+// -- Banheiros (funções nomeadas mantidas para compatibilidade com o HTML) --
+function criarLinhaBanheiro(dados) { return criarLinhaSimples(dados); }
+function adicionarBanheiro() { adicionarLinhaSimples("tabela-banheiros"); }
+function salvarTabelaBanheiros() { salvarTabelaSimples("tabela-banheiros", "tabelaBanheiros"); }
+function restaurarTabelaBanheiros() { restaurarTabelaSimples("tabela-banheiros", "tabelaBanheiros"); }
+
+// -- Bebedouros --
+function criarLinhaBebedouro(dados) { return criarLinhaSimples(dados); }
+function adicionarBebedouro() { adicionarLinhaSimples("tabela-bebedouros"); }
+function salvarTabelaBebedouros() { salvarTabelaSimples("tabela-bebedouros", "tabelaBebedouros"); }
+function restaurarTabelaBebedouros() { restaurarTabelaSimples("tabela-bebedouros", "tabelaBebedouros"); }
+
+// ======================================
+// GALERIA DE FOTOS - OBSERVAÇÕES GERAIS
+// Cards em grade, sem numeração/observação individual,
+// tamanho padronizado via CSS (.foto-obs)
+// ======================================
+
+function criarCardFotoObservacao(imagemBase64 = "") {
+    const card = document.createElement("div");
+    card.className = "foto-obs-card upload-slot";
+
+    card.innerHTML = `
+        <button type="button" class="btn-remover-foto" onclick="removerFotoObservacao(this)" title="Remover foto">×</button>
+        <label class="btn-arquivo">
+            📎
+            <input type="file" accept="image/*" capture="environment" hidden>
+        </label>
+    `;
+
+    if (imagemBase64) {
+        const input = card.querySelector("input[type='file']");
+        input.dataset.imagem = imagemBase64;
+
+        const img = document.createElement("img");
+        img.className = "foto-obs";
+        img.src = imagemBase64;
+        img.title = "Clique para trocar a foto";
+        img.onclick = () => input.click();
+
+        card.insertBefore(img, card.firstChild);
+    }
+
+    return card;
+}
+
+function adicionarFotoObservacao() {
+    const galeria = document.getElementById("galeria-observacoes");
+    galeria.appendChild(criarCardFotoObservacao());
+
+    ativarUploadImagens();
+    salvarAutomaticamente();
+}
+
+function removerFotoObservacao(botao) {
+    const card = botao.closest(".foto-obs-card");
+    if (!card) return;
+
+    card.remove();
+    salvarAutomaticamente();
+}
+
+function salvarFotosObservacoes() {
+    const fotos = [];
+
+    document
+        .querySelectorAll("#galeria-observacoes .foto-obs-card input[type='file']")
+        .forEach(input => {
+            if (input.dataset.imagem) fotos.push(input.dataset.imagem);
+        });
+
+    localStorage.setItem("fotosObservacoes", JSON.stringify(fotos));
+}
+
+function restaurarFotosObservacoes() {
+    const fotos = JSON.parse(localStorage.getItem("fotosObservacoes")) || [];
+
+    const galeria = document.getElementById("galeria-observacoes");
+    if (!galeria) return;
+
+    galeria.innerHTML = "";
+    fotos.forEach(foto => galeria.appendChild(criarCardFotoObservacao(foto)));
+
+    ativarUploadImagens();
+}
+
+// ======================================
+// SALVAMENTO E RESTAURAÇÃO DOS CAMPOS DO FORMULÁRIO
+// ======================================
+
+function salvarAutomaticamente() {
+    const dados = {};
+
+    document.querySelectorAll("input, textarea").forEach(campo => {
+        if (campoIgnoravel(campo)) return;
+
+        if (campo.type === "radio") {
+            if (campo.checked) dados[campo.name] = campo.value;
+            return;
+        }
+
+        if (campo.type === "checkbox") {
+            dados[campo.id] = campo.checked;
+            return;
+        }
+
+        if (!campo.id) return;
+        dados[campo.id] = campo.value;
+    });
+
+    localStorage.setItem("sstAutoSave", JSON.stringify(dados));
+
+    const imagens = [];
+    document.querySelectorAll("input[type='file']").forEach(input => {
+        imagens.push(input.dataset.imagem || "");
+    });
+    localStorage.setItem("imagensSST", JSON.stringify(imagens));
+
+    salvarTabelaSetores();
+    salvarTabelaExtintores();
+    salvarTabelaBanheiros();
+    salvarTabelaBebedouros();
+    salvarFotosObservacoes();
+}
+
+function restaurarDados() {
+    const dados = JSON.parse(localStorage.getItem("sstAutoSave"));
+    if (!dados) return;
+
+    document.querySelectorAll("input, textarea").forEach(campo => {
+        if (campoIgnoravel(campo)) return;
+
+        if (campo.type === "radio") {
+            campo.checked = dados[campo.name] === campo.value;
+            return;
+        }
+
+        if (campo.type === "checkbox") {
+            campo.checked = dados[campo.id] || false;
+            return;
+        }
+
+        if (!campo.id) return;
+        campo.value = dados[campo.id] || "";
+    });
+}
+
+// ======================================
+// PDF
+// ======================================
+
+function gerarPDF() {
+    const opt = {
+        margin: 10,
+        filename: "relatorio_sst.pdf",
+        image: { type: "jpeg", quality: 0.75 },
+        html2canvas: {
+            scale: 1.5,
+            useCORS: true,
+            // Corrige páginas em branco/conteúdo deslocado quando a
+            // página estava rolada (scroll) no momento do clique
+            scrollX: 0,
+            scrollY: -window.scrollY,
+            windowWidth: document.documentElement.offsetWidth,
+            // Limita a captura à altura real do conteúdo (evita
+            // páginas em branco sobrando no final, causadas pelo
+            // html2canvas medindo a altura da janela/documento inteiro)
+            windowHeight: areaPDF.scrollHeight,
+            height: areaPDF.scrollHeight,
+            // Esconde botões e ícones de upload no PDF final
+            ignoreElements: (elemento) =>
+                elemento.tagName === "BUTTON" || elemento.classList.contains("btn-arquivo")
+        },
+        jsPDF: {
+            unit: "mm",
+            format: "a4",
+            orientation: "portrait",
+            compress: true
+        },
+        // Evita cortar uma linha de tabela ou um card de foto no meio entre páginas
+        // (usar só o modo "css", sem "legacy", evita páginas em branco sobrando no final)
+        pagebreak: { mode: ["css"], avoid: ["tr", ".foto-obs-card", ".titulo"] }
+    };
+
+    html2pdf().set(opt).from(areaPDF).save();
+}
+
+// ======================================
+// INICIALIZAÇÃO
+// ======================================
+
+document.addEventListener("DOMContentLoaded", () => {
+    restaurarDados();
+    restaurarTabelaSetores();
+    restaurarTabelaExtintores();
+    ativarUploadImagens();
+    restaurarImagens();
+    restaurarTabelaBanheiros();
+    restaurarTabelaBebedouros();
+    restaurarFotosObservacoes();
+
+    document.addEventListener("input", salvarAutomaticamente);
+    document.addEventListener("change", salvarAutomaticamente);
+
+    document.addEventListener("keyup", (e) => {
+        if (e.target.isContentEditable) {
+            salvarAutomaticamente();
+        }
+
+        if (e.target.matches("#tabela-banheiros td[contenteditable]")) {
+            salvarTabelaBanheiros();
+        }
+
+        if (e.target.matches("#tabela-bebedouros td[contenteditable]")) {
+            salvarTabelaBebedouros();
+        }
+    });
+});
