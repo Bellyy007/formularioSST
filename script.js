@@ -439,6 +439,28 @@ function restaurarFotosObservacoes() {
 }
 
 // ======================================
+// AUTO-AJUSTE DE ALTURA DO TEXTAREA
+// Garante que o texto digitado nunca fique escondido dentro da
+// caixa (nem na tela, nem na hora de imprimir/gerar o PDF)
+// ======================================
+
+function autoAjustarTextarea(campo) {
+    campo.style.height = "auto";
+    campo.style.height = campo.scrollHeight + "px";
+}
+
+function ativarAutoAjusteTextareas() {
+    document.querySelectorAll("textarea").forEach(campo => {
+        autoAjustarTextarea(campo);
+
+        if (campo.dataset.autoAjusteAtivo) return;
+        campo.dataset.autoAjusteAtivo = "true";
+
+        campo.addEventListener("input", () => autoAjustarTextarea(campo));
+    });
+}
+
+// ======================================
 // SALVAMENTO E RESTAURAÇÃO DOS CAMPOS DO FORMULÁRIO
 // ======================================
 
@@ -504,39 +526,70 @@ function restaurarDados() {
 // ======================================
 
 function gerarPDF() {
-    const opt = {
-        margin: 10,
-        filename: "relatorio_sst.pdf",
-        image: { type: "jpeg", quality: 0.75 },
-        html2canvas: {
-            scale: 1.5,
-            useCORS: true,
-            // Corrige páginas em branco/conteúdo deslocado quando a
-            // página estava rolada (scroll) no momento do clique
-            scrollX: 0,
-            scrollY: -window.scrollY,
-            windowWidth: document.documentElement.offsetWidth,
-            // Limita a captura à altura real do conteúdo (evita
-            // páginas em branco sobrando no final, causadas pelo
-            // html2canvas medindo a altura da janela/documento inteiro)
-            windowHeight: areaPDF.scrollHeight,
-            height: areaPDF.scrollHeight,
-            // Esconde botões e ícones de upload no PDF final
-            ignoreElements: (elemento) =>
-                elemento.tagName === "BUTTON" || elemento.classList.contains("btn-arquivo")
-        },
-        jsPDF: {
+    const botao = document.getElementById("btnGerarPdf");
+    const textoOriginal = botao ? botao.textContent : "";
+
+    if (botao) {
+        botao.disabled = true;
+        botao.textContent = "⏳ Gerando PDF...";
+    }
+
+    // Esconde botões e ícones de anexo removendo-os de verdade do
+    // layout (display:none) só durante a geração, para não sobrar
+    // espaço vazio nem "fantasma" no cálculo de altura do PDF
+    const elementosOcultos = areaPDF.querySelectorAll("button, .btn-arquivo");
+    const estilosOriginais = [];
+
+    elementosOcultos.forEach(el => {
+        estilosOriginais.push(el.style.display);
+        el.style.display = "none";
+    });
+
+    const restaurar = () => {
+        elementosOcultos.forEach((el, indice) => {
+            el.style.display = estilosOriginais[indice];
+        });
+
+        if (botao) {
+            botao.disabled = false;
+            botao.textContent = textoOriginal;
+        }
+    };
+
+    try {
+        const { jsPDF } = window.jspdf;
+
+        const documentoPdf = new jsPDF({
             unit: "mm",
             format: "a4",
             orientation: "portrait",
             compress: true
-        },
-        // Evita cortar uma linha de tabela ou um card de foto no meio entre páginas
-        // (usar só o modo "css", sem "legacy", evita páginas em branco sobrando no final)
-        pagebreak: { mode: ["css"], avoid: ["tr", ".foto-obs-card", ".titulo"] }
-    };
+        });
 
-    html2pdf().set(opt).from(areaPDF).save();
+        const larguraPagina = 190; // 210mm (A4) menos 10mm de margem de cada lado
+
+        documentoPdf
+            .html(areaPDF, {
+                margin: [10, 10, 10, 10],
+                autoPaging: "text",
+                width: larguraPagina,
+                windowWidth: areaPDF.scrollWidth,
+                html2canvas: { useCORS: true }
+            })
+            .then(() => {
+                documentoPdf.save("relatorio_sst.pdf");
+                restaurar();
+            })
+            .catch((erro) => {
+                console.error("Erro ao gerar PDF:", erro);
+                restaurar();
+                alert("Não foi possível gerar o PDF. Tente novamente.");
+            });
+    } catch (erro) {
+        console.error("Erro ao gerar PDF:", erro);
+        restaurar();
+        alert("Não foi possível gerar o PDF. Tente novamente.");
+    }
 }
 
 // ======================================
@@ -552,6 +605,7 @@ document.addEventListener("DOMContentLoaded", () => {
     restaurarTabelaBanheiros();
     restaurarTabelaBebedouros();
     restaurarFotosObservacoes();
+    ativarAutoAjusteTextareas();
 
     document.addEventListener("input", salvarAutomaticamente);
     document.addEventListener("change", salvarAutomaticamente);
