@@ -1,3 +1,9 @@
+* {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+}
+
 body {
     font-family: Arial, sans-serif;
     background: #f4f4f4;
@@ -273,6 +279,30 @@ button {
 
     .foto-obs-card{
         border:none;
+    }
+
+    /* Evita que o texto das observações fique cortado/escondido
+       (o textarea tem altura fixa e overflow:hidden na tela;
+       na impressão ele precisa mostrar o conteúdo inteiro) */
+    textarea{
+        overflow: visible;
+        height: auto;
+    }
+
+    /* Evita cortar uma seção inteira no meio entre páginas quando
+       ela cabe sozinha, sem impedir tabelas grandes de continuar
+       naturalmente na página seguinte */
+    .container{
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+
+    table, .grade-fotos, .tabela-fotos{
+        page-break-inside: auto;
+    }
+
+    img{
+        max-width: 100%;
     }
 
 }
