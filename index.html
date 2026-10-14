@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -245,7 +245,8 @@ Data de Vencimento <br>
     <table>
         <thead>
             <tr>
-                <th>Foto</th>
+                <th>Foto Externa (Porta)</th>
+                <th>Foto Interna</th>
                 <th>Observação</th>
                 <th></th>
             </tr>
@@ -254,7 +255,18 @@ Data de Vencimento <br>
         <tbody id="tabela-banheiros">
             <tr>
                 <td class="campo-arquivo-grande upload-slot">
-                    <label class="btn-foto-grande">
+                    <label class="btn-arquivo btn-foto-grande">
+                        📎
+                        <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            hidden
+                        >
+                    </label>
+                </td>
+                <td class="campo-arquivo-grande upload-slot">
+                    <label class="btn-arquivo btn-foto-grande">
                         📎
                         <input
                             type="file"
