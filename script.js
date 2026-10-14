@@ -368,15 +368,38 @@ function salvarTabelaBanheiros() {
     localStorage.setItem("tabelaBanheiros", JSON.stringify(banheiros));
 }
 
+function sanitizarTabelaBanheiros() {
+    const linhas = document.querySelectorAll("#tabela-banheiros tr");
+    linhas.forEach(linha => {
+        const inputs = linha.querySelectorAll("input[type='file']");
+        // Se a linha tem apenas 1 input de upload (formato legado de 1 foto)
+        if (inputs.length === 1) {
+            const tdFotoInterna = document.createElement("td");
+            tdFotoInterna.className = "campo-arquivo-grande upload-slot";
+            tdFotoInterna.innerHTML = `
+                <label class="btn-arquivo btn-foto-grande">
+                    📎
+                    <input type="file" accept="image/*" capture="environment" hidden>
+                </label>
+            `;
+            linha.cells[0].insertAdjacentElement("afterend", tdFotoInterna);
+        }
+    });
+}
+
 function restaurarTabelaBanheiros() {
     const dados = JSON.parse(localStorage.getItem("tabelaBanheiros"));
-    if (!dados || dados.length === 0) return;
+    if (!dados || dados.length === 0) {
+        sanitizarTabelaBanheiros();
+        return;
+    }
 
     tabelaBanheiros.innerHTML = "";
     dados.forEach(item => {
         tabelaBanheiros.appendChild(criarLinhaBanheiro(item));
     });
 
+    sanitizarTabelaBanheiros();
     ativarUploadImagens();
 }
 
@@ -692,6 +715,19 @@ function gerarPDF() {
         el.style.display = "none";
     });
 
+    // Se a tela for menor que a largura padrão de impressão/desktop (1024px),
+    // ajusta temporariamente para largura desktop para que o PDF gerado em
+    // celulares e tablets fique idêntico, estruturado e com a mesma qualidade do PC
+    const larguraDesktop = 1024;
+    const isMobile = window.innerWidth < larguraDesktop;
+    const larguraOriginalArea = areaPDF.style.width;
+    const maxLarguraOriginalArea = areaPDF.style.maxWidth;
+
+    if (isMobile) {
+        areaPDF.style.width = larguraDesktop + "px";
+        areaPDF.style.maxWidth = larguraDesktop + "px";
+    }
+
     // O html2canvas não desenha corretamente o texto de <textarea>
     // (usa seu próprio cálculo de quebra de linha, diferente do
     // navegador). Solução: trocar temporariamente cada textarea por uma
@@ -704,6 +740,11 @@ function gerarPDF() {
         });
 
         restaurarTextareas(substituicoesTextarea);
+
+        if (isMobile) {
+            areaPDF.style.width = larguraOriginalArea;
+            areaPDF.style.maxWidth = maxLarguraOriginalArea;
+        }
 
         window.scrollTo(scrollAnteriorX, scrollAnteriorY);
 
@@ -724,7 +765,8 @@ function gerarPDF() {
             logging: false,
             scrollX: 0,
             scrollY: 0,
-            windowWidth: document.documentElement.clientWidth || areaPDF.scrollWidth
+            width: isMobile ? larguraDesktop : areaPDF.offsetWidth,
+            windowWidth: isMobile ? larguraDesktop : (document.documentElement.clientWidth || areaPDF.scrollWidth)
         })
             .then((canvas) => {
                 montarPdfComQuebrasSeguras(canvas);
@@ -866,6 +908,8 @@ document.addEventListener("DOMContentLoaded", () => {
     ativarUploadImagens();
     restaurarImagens();
     restaurarTabelaBanheiros();
+    sanitizarTabelaBanheiros();
+    ativarUploadImagens();
     restaurarTabelaBebedouros();
     restaurarFotosObservacoes();
     ativarAutoAjusteTextareas();

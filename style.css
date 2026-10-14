@@ -2,6 +2,7 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
     color-adjust: exact;
+    box-sizing: border-box;
 }
 
 body {
@@ -25,6 +26,8 @@ body {
     padding: 15px;
     border-radius: 10px;
     border: 1px solid #ccc;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .titulo {
@@ -391,4 +394,79 @@ button {
 
     transform: scale(1.1);
 
+}
+
+/* ======================================
+   RESPONSIVIDADE (TABLETS E CELULARES)
+   ====================================== */
+@media (max-width: 768px) {
+    .header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 15px;
+    }
+
+    .header h1 {
+        font-size: 19px;
+        margin: 0;
+    }
+
+    .header h2 {
+        font-size: 14px;
+        margin: 4px 0 0 0;
+    }
+
+    .data-visita {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+
+    .data-visita input {
+        width: 100%;
+    }
+
+    .container {
+        margin: 12px 8px;
+        padding: 12px;
+        border-radius: 8px;
+    }
+
+    .grid-2 {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .alternativas {
+        gap: 10px;
+    }
+
+    /* Tabelas preservam largura legível e rolam com gesto de toque */
+    table {
+        min-width: 620px;
+    }
+
+    #tabela-banheiros {
+        min-width: 650px;
+    }
+
+    #tabela-banheiros th:nth-child(1),
+    #tabela-banheiros th:nth-child(2),
+    #tabela-banheiros td:nth-child(1),
+    #tabela-banheiros td:nth-child(2) {
+        width: 190px;
+    }
+
+    .foto-local {
+        width: 170px;
+        height: 220px;
+    }
+
+    .assinaturas-container {
+        flex-direction: column;
+        gap: 20px;
+    }
 }
