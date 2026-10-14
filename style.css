@@ -269,7 +269,8 @@ button {
         display:none;
     }
 
-    .btn-arquivo{
+    .btn-arquivo,
+    .btn-foto-grande{
         display:none;
     }
 
@@ -325,8 +326,9 @@ button {
 
 .foto-local{
 
-    width:230px;
-    height:280px;
+    width:220px;
+    max-width:100%;
+    height:260px;
     object-fit:cover;
     display:block;
     margin:0 auto 10px;
@@ -335,6 +337,13 @@ button {
     cursor:pointer;
     transition:.2s;
 
+}
+
+#tabela-banheiros th:nth-child(1),
+#tabela-banheiros th:nth-child(2),
+#tabela-banheiros td:nth-child(1),
+#tabela-banheiros td:nth-child(2) {
+    width: 230px;
 }
 
 .foto-local:hover{
