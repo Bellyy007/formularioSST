@@ -283,8 +283,106 @@ function restaurarTabelaSetores() {
 }
 
 // ======================================
-// TABELAS SIMPLES (BANHEIROS E BEBEDOUROS)
-// Estrutura idêntica: foto + observação + remover
+// BANHEIROS (3 SEGMENTOS: FOTO EXTERNA, FOTO INTERNA, OBSERVAÇÃO)
+// ======================================
+
+function criarLinhaBanheiro(dados = {}) {
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+        <td class="campo-arquivo-grande upload-slot">
+            <label class="btn-arquivo btn-foto-grande">
+                📎
+                <input type="file" accept="image/*" capture="environment" hidden>
+            </label>
+        </td>
+        <td class="campo-arquivo-grande upload-slot">
+            <label class="btn-arquivo btn-foto-grande">
+                📎
+                <input type="file" accept="image/*" capture="environment" hidden>
+            </label>
+        </td>
+        <td contenteditable="true">${dados.observacao || ""}</td>
+        <td><button onclick="removerLinha(this)">X</button></td>
+    `;
+
+    const inputs = tr.querySelectorAll("input[type='file']");
+    const tds = tr.querySelectorAll(".campo-arquivo-grande");
+
+    // Compatibilidade: se houver dado antigo (dados.imagem), direciona para foto externa
+    const fotoExterna = dados.imagemExterna || dados.imagem || "";
+    if (fotoExterna && inputs[0] && tds[0]) {
+        inputs[0].dataset.imagem = fotoExterna;
+
+        const img = document.createElement("img");
+        img.className = "foto-local";
+        img.src = fotoExterna;
+        img.title = "Clique para trocar a foto";
+        img.onclick = () => inputs[0].click();
+
+        tds[0].insertBefore(img, tds[0].firstChild);
+    }
+
+    const fotoInterna = dados.imagemInterna || "";
+    if (fotoInterna && inputs[1] && tds[1]) {
+        inputs[1].dataset.imagem = fotoInterna;
+
+        const img = document.createElement("img");
+        img.className = "foto-local";
+        img.src = fotoInterna;
+        img.title = "Clique para trocar a foto";
+        img.onclick = () => inputs[1].click();
+
+        tds[1].insertBefore(img, tds[1].firstChild);
+    }
+
+    return tr;
+}
+
+function adicionarBanheiro() {
+    tabelaBanheiros.appendChild(criarLinhaBanheiro());
+    ativarUploadImagens();
+    salvarAutomaticamente();
+}
+
+function salvarTabelaBanheiros() {
+    const banheiros = [];
+
+    document.querySelectorAll("#tabela-banheiros tr").forEach(linha => {
+        const inputs = linha.querySelectorAll("input[type='file']");
+        const obsCell = linha.cells[2];
+
+        const fotoExterna = inputs[0]?.dataset.imagem || "";
+        const fotoInterna = inputs[1]?.dataset.imagem || "";
+        const observacao = obsCell ? obsCell.innerText.trim() : "";
+
+        banheiros.push({
+            observacao: observacao,
+            imagemExterna: fotoExterna,
+            imagemInterna: fotoInterna,
+            // Mantém campo legado 'imagem' por compatibilidade
+            imagem: fotoExterna
+        });
+    });
+
+    localStorage.setItem("tabelaBanheiros", JSON.stringify(banheiros));
+}
+
+function restaurarTabelaBanheiros() {
+    const dados = JSON.parse(localStorage.getItem("tabelaBanheiros"));
+    if (!dados || dados.length === 0) return;
+
+    tabelaBanheiros.innerHTML = "";
+    dados.forEach(item => {
+        tabelaBanheiros.appendChild(criarLinhaBanheiro(item));
+    });
+
+    ativarUploadImagens();
+}
+
+// ======================================
+// TABELAS SIMPLES (BEBEDOUROS)
+// Estrutura: foto + observação + remover
 // ======================================
 
 function criarLinhaSimples(dados = {}) {
@@ -292,7 +390,7 @@ function criarLinhaSimples(dados = {}) {
 
     tr.innerHTML = `
         <td class="campo-arquivo-grande upload-slot">
-            <label class="btn-arquivo">
+            <label class="btn-arquivo btn-foto-grande">
                 📎
                 <input type="file" accept="image/*" capture="environment" hidden>
             </label>
@@ -332,7 +430,7 @@ function salvarTabelaSimples(tabelaId, storageKey) {
 
     document.querySelectorAll(`#${tabelaId} tr`).forEach(linha => {
         dados.push({
-            observacao: linha.cells[1].textContent.trim(),
+            observacao: linha.cells[1].innerText.trim(),
             imagem: linha.querySelector("input[type='file']")?.dataset.imagem || ""
         });
     });
@@ -351,12 +449,6 @@ function restaurarTabelaSimples(tabelaId, storageKey) {
 
     ativarUploadImagens();
 }
-
-// -- Banheiros (funções nomeadas mantidas para compatibilidade com o HTML) --
-function criarLinhaBanheiro(dados) { return criarLinhaSimples(dados); }
-function adicionarBanheiro() { adicionarLinhaSimples("tabela-banheiros"); }
-function salvarTabelaBanheiros() { salvarTabelaSimples("tabela-banheiros", "tabelaBanheiros"); }
-function restaurarTabelaBanheiros() { restaurarTabelaSimples("tabela-banheiros", "tabelaBanheiros"); }
 
 // -- Bebedouros --
 function criarLinhaBebedouro(dados) { return criarLinhaSimples(dados); }
@@ -522,6 +614,55 @@ function restaurarDados() {
 }
 
 // ======================================
+// SUBSTITUIÇÃO TEMPORÁRIA DE TEXTAREA POR DIV (SÓ NA GERAÇÃO DO PDF)
+// ======================================
+
+// Cria uma <div> "gêmea" de cada <textarea>, com o mesmo texto e o
+// mesmo visual (fonte, espaçamento, borda), e a coloca no lugar da
+// textarea antes da captura do html2canvas.
+function substituirTextareasPorDivs(container) {
+    const substituicoes = [];
+
+    container.querySelectorAll("textarea").forEach(textarea => {
+        const estilo = window.getComputedStyle(textarea);
+        const div = document.createElement("div");
+
+        // pre-wrap preserva as quebras de linha que o usuário digitou
+        // e ainda quebra automaticamente linhas compridas, igual a textarea
+        div.style.whiteSpace = "pre-wrap";
+        div.style.wordBreak = "break-word";
+        div.style.boxSizing = estilo.boxSizing;
+        div.style.width = estilo.width;
+        div.style.minHeight = estilo.minHeight;
+        div.style.padding = estilo.padding;
+        div.style.border = estilo.border;
+        div.style.borderRadius = estilo.borderRadius;
+        div.style.fontFamily = estilo.fontFamily;
+        div.style.fontSize = estilo.fontSize;
+        div.style.lineHeight = estilo.lineHeight;
+        div.style.color = estilo.color;
+        div.style.backgroundColor = estilo.backgroundColor;
+
+        div.textContent = textarea.value || "";
+
+        textarea.insertAdjacentElement("afterend", div);
+        textarea.style.display = "none";
+
+        substituicoes.push({ textarea, div });
+    });
+
+    return substituicoes;
+}
+
+// Remove as divs temporárias e devolve as textareas editáveis ao normal
+function restaurarTextareas(substituicoes) {
+    substituicoes.forEach(({ textarea, div }) => {
+        div.remove();
+        textarea.style.display = "";
+    });
+}
+
+// ======================================
 // PDF
 // ======================================
 
@@ -534,10 +675,16 @@ function gerarPDF() {
         botao.textContent = "⏳ Gerando PDF...";
     }
 
+    // Salva a posição de rolagem e posiciona a página no topo para
+    // que a captura do html2canvas e as coordenadas do DOM fiquem 100% alinhadas
+    const scrollAnteriorX = window.scrollX || window.pageXOffset || 0;
+    const scrollAnteriorY = window.scrollY || window.pageYOffset || 0;
+    window.scrollTo(0, 0);
+
     // Esconde botões e ícones de anexo removendo-os de verdade do
     // layout (display:none) só durante a geração, para não sobrar
     // espaço vazio nem "fantasma" no cálculo de altura do PDF
-    const elementosOcultos = areaPDF.querySelectorAll("button, .btn-arquivo");
+    const elementosOcultos = areaPDF.querySelectorAll("button, .btn-arquivo, .btn-foto-grande, .btn-remover-foto");
     const estilosOriginais = [];
 
     elementosOcultos.forEach(el => {
@@ -545,10 +692,20 @@ function gerarPDF() {
         el.style.display = "none";
     });
 
+    // O html2canvas não desenha corretamente o texto de <textarea>
+    // (usa seu próprio cálculo de quebra de linha, diferente do
+    // navegador). Solução: trocar temporariamente cada textarea por uma
+    // <div> com o mesmo texto e mesmo estilo — divs são renderizadas com fidelidade.
+    const substituicoesTextarea = substituirTextareasPorDivs(areaPDF);
+
     const restaurar = () => {
         elementosOcultos.forEach((el, indice) => {
             el.style.display = estilosOriginais[indice];
         });
+
+        restaurarTextareas(substituicoesTextarea);
+
+        window.scrollTo(scrollAnteriorX, scrollAnteriorY);
 
         if (botao) {
             botao.disabled = false;
@@ -556,28 +713,21 @@ function gerarPDF() {
         }
     };
 
-    try {
-        const { jsPDF } = window.jspdf;
+    // Dá tempo do navegador aplicar o display:none acima (reflow) antes
+    // de "tirar a foto" da tela
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        const escala = 2; // resolução da captura (mantém o PDF nítido)
 
-        const documentoPdf = new jsPDF({
-            unit: "mm",
-            format: "a4",
-            orientation: "portrait",
-            compress: true
-        });
-
-        const larguraPagina = 190; // 210mm (A4) menos 10mm de margem de cada lado
-
-        documentoPdf
-            .html(areaPDF, {
-                margin: [10, 10, 10, 10],
-                autoPaging: "text",
-                width: larguraPagina,
-                windowWidth: areaPDF.scrollWidth,
-                html2canvas: { useCORS: true }
-            })
-            .then(() => {
-                documentoPdf.save("relatorio_sst.pdf");
+        html2canvas(areaPDF, {
+            scale: escala,
+            useCORS: true,
+            logging: false,
+            scrollX: 0,
+            scrollY: 0,
+            windowWidth: document.documentElement.clientWidth || areaPDF.scrollWidth
+        })
+            .then((canvas) => {
+                montarPdfComQuebrasSeguras(canvas);
                 restaurar();
             })
             .catch((erro) => {
@@ -585,11 +735,124 @@ function gerarPDF() {
                 restaurar();
                 alert("Não foi possível gerar o PDF. Tente novamente.");
             });
-    } catch (erro) {
-        console.error("Erro ao gerar PDF:", erro);
-        restaurar();
-        alert("Não foi possível gerar o PDF. Tente novamente.");
+    }));
+}
+
+// Fatiamento do canvas em páginas A4 com cálculo de quebra segura baseado
+// nas posições reais dos elementos no DOM, impedindo que linhas de tabelas,
+// blocos de fotos e observações sejam cortados horizontalmente ao meio.
+function montarPdfComQuebrasSeguras(canvas) {
+    const { jsPDF } = window.jspdf;
+
+    const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
+
+    const margem = 10;
+    const larguraUtil = 210 - margem * 2;
+    const alturaUtilMm = 297 - margem * 2;
+
+    const pxPorMm = canvas.width / larguraUtil;
+    const alturaPaginaPx = alturaUtilMm * pxPorMm;
+
+    // Fator de escala vertical real entre a altura capturada no canvas e a altura do elemento no DOM
+    const alturaDom = areaPDF.getBoundingClientRect().height || areaPDF.offsetHeight;
+    const fatorEscalaY = alturaDom > 0 ? (canvas.height / alturaDom) : 2;
+
+    const quebrasSeguras = calcularQuebrasSeguras(areaPDF, fatorEscalaY);
+
+    let yAtual = 0;
+    let primeiraPagina = true;
+
+    while (yAtual < canvas.height - 1) {
+        let limitePagina = Math.min(yAtual + alturaPaginaPx, canvas.height);
+
+        if (limitePagina < canvas.height) {
+            // Procura o ponto de corte seguro mais próximo do limite da página, sem ultrapassá-lo.
+            // Exige que o ponto avance pelo menos 30px em relação a yAtual para evitar páginas vazias ou loops.
+            const candidatos = quebrasSeguras.filter(q => q > yAtual + 30 && q <= limitePagina);
+            if (candidatos.length > 0) {
+                limitePagina = candidatos[candidatos.length - 1];
+            }
+        }
+
+        const alturaFatiaPx = Math.max(1, Math.round(limitePagina - yAtual));
+
+        const canvasFatia = document.createElement("canvas");
+        canvasFatia.width = canvas.width;
+        canvasFatia.height = alturaFatiaPx;
+
+        canvasFatia.getContext("2d").drawImage(
+            canvas,
+            0, yAtual, canvas.width, alturaFatiaPx,
+            0, 0, canvas.width, alturaFatiaPx
+        );
+
+        const imagemFatia = canvasFatia.toDataURL("image/jpeg", 0.90);
+        const alturaFatiaMm = alturaFatiaPx / pxPorMm;
+
+        if (!primeiraPagina) pdf.addPage();
+        pdf.addImage(imagemFatia, "JPEG", margem, margem, larguraUtil, alturaFatiaMm);
+
+        primeiraPagina = false;
+        yAtual = limitePagina;
     }
+
+    pdf.save("relatorio_sst.pdf");
+}
+
+// Lista, em pixels reais da imagem gerada no canvas, todas as posições
+// onde é seguro realizar a quebra de página:
+// - Início e fim de seções (.container)
+// - Topo de tabelas (para manter cabeçalho junto à primeira linha)
+// - Linhas inteiras de tabelas (tbody tr), mantendo fotos e observações sempre juntas
+// - Cards individuais de fotos da galeria (.foto-obs-card)
+function calcularQuebrasSeguras(container, fatorEscalaY) {
+    const topoContainer = container.getBoundingClientRect().top;
+    const quebras = new Set([0]);
+
+    // 1. Início e fim de cada seção (.container)
+    container.querySelectorAll(".container").forEach(el => {
+        const rect = el.getBoundingClientRect();
+        const topo = Math.round((rect.top - topoContainer) * fatorEscalaY);
+        const fundo = Math.round((rect.bottom - topoContainer) * fatorEscalaY);
+
+        if (topo > 0) quebras.add(topo);
+        if (fundo > 0) quebras.add(fundo);
+    });
+
+    // 2. Linhas de tabelas (tbody tr): nunca cortar uma linha ou fotografia ao meio
+    container.querySelectorAll("table").forEach(tabela => {
+        const rectTabela = tabela.getBoundingClientRect();
+        const topoTabela = Math.round((rectTabela.top - topoContainer) * fatorEscalaY);
+        if (topoTabela > 0) quebras.add(topoTabela);
+
+        const linhasCorpo = tabela.querySelectorAll("tbody tr");
+        linhasCorpo.forEach((linha, indice) => {
+            const rect = linha.getBoundingClientRect();
+            const topoLinha = Math.round((rect.top - topoContainer) * fatorEscalaY);
+            const fundoLinha = Math.round((rect.bottom - topoContainer) * fatorEscalaY);
+
+            // Para a primeira linha, preferir quebrar antes da tabela para não deixar
+            // o thead isolado no rodapé da página anterior
+            if (indice > 0 && topoLinha > 0) {
+                quebras.add(topoLinha);
+            }
+            if (fundoLinha > 0) {
+                quebras.add(fundoLinha);
+            }
+        });
+    });
+
+    // 3. Cards individuais da galeria de fotos de observações
+    container.querySelectorAll(".foto-obs-card").forEach(card => {
+        const rect = card.getBoundingClientRect();
+        const topo = Math.round((rect.top - topoContainer) * fatorEscalaY);
+        const fundo = Math.round((rect.bottom - topoContainer) * fatorEscalaY);
+
+        if (topo > 0) quebras.add(topo);
+        if (fundo > 0) quebras.add(fundo);
+    });
+
+    return Array.from(quebras).sort((a, b) => a - b);
 }
 
 // ======================================
